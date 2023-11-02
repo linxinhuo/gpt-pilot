@@ -113,28 +113,7 @@ class AgentConvo:
 
     def format_message_content(self, response, function_calls):
         # TODO remove this once the database is set up properly
-        if isinstance(response, str):
-            return response
-        else:
-            # string_response = []
-            # for key, value in response.items():
-            #     string_response.append(f'# {key}')
-            #
-            #     if isinstance(value, list):
-            #         if 'to_message' in function_calls:
-            #             string_response.append(function_calls['to_message'](value))
-            #         elif len(value) > 0 and isinstance(value[0], dict):
-            #             string_response.extend([
-            #                 f'##{i}\n' + array_of_objects_to_string(d)
-            #                 for i, d in enumerate(value)
-            #             ])
-            #         else:
-            #             string_response.extend(['- ' + r for r in value])
-            #     else:
-            #         string_response.append(str(value))
-            #
-            # return '\n'.join(string_response)
-            return json.dumps(response)
+        return response if isinstance(response, str) else json.dumps(response)
         # TODO END
 
     def continuous_conversation(self, prompt_path, prompt_data, function_calls=None):
@@ -222,10 +201,7 @@ class AgentConvo:
 
         updated_message, num_replacements = re.subn(pattern, new_section_content, message, flags=re.DOTALL)
 
-        if num_replacements == 0:
-            return message
-
-        return updated_message
+        return message if num_replacements == 0 else updated_message
 
     def convo_length(self):
         return len([msg for msg in self.messages if msg['role'] != 'system'])

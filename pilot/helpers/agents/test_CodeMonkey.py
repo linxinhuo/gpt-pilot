@@ -75,7 +75,7 @@ class TestCodeMonkey:
                 mock_save_file.assert_called_once()
                 called_data = mock_save_file.call_args[0][0]
                 assert re.match(r'\w+\.txt$', called_data['name'])
-                assert (called_data['path'] == '/' or called_data['path'] == called_data['name'])
+                assert called_data['path'] in ['/', called_data['name']]
                 assert called_data['content'] == 'Washington'
 
     @patch('helpers.AgentConvo.get_saved_development_step')
@@ -115,5 +115,5 @@ class TestCodeMonkey:
                 mock_save_file.assert_called_once()
                 called_data = mock_save_file.call_args[0][0]
                 assert called_data['name'] == 'output.txt'
-                assert (called_data['path'] == '/' or called_data['path'] == called_data['name'])
+                assert called_data['path'] in ['/', called_data['name']]
                 assert called_data['content'] == 'Hello World!\n'

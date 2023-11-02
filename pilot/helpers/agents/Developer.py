@@ -42,7 +42,10 @@ class Developer(Agent):
             update_app_status(self.project.args['app_id'], self.project.current_step)
 
             if self.project.skip_steps is None:
-                self.project.skip_steps = False if ('skip_until_dev_step' in self.project.args and self.project.args['skip_until_dev_step'] == '0') else True
+                self.project.skip_steps = (
+                    'skip_until_dev_step' not in self.project.args
+                    or self.project.args['skip_until_dev_step'] != '0'
+                )
 
         # DEVELOPMENT
         print(color_green_bold("🚀 Now for the actual development...\n"))
@@ -58,12 +61,11 @@ class Developer(Agent):
             self.project.finished = True
             update_app_status(self.project.args['app_id'], self.project.current_step)
             message = 'The app is DONE!!! Yay...you can use it now.\n'
-            logger.info(message)
-            print(color_green_bold(message))
         else:
             message = 'Feature complete!\n'
-            logger.info(message)
-            print(color_green_bold(message))
+
+        logger.info(message)
+        print(color_green_bold(message))
 
 
     def implement_task(self, i, development_task=None):
@@ -121,7 +123,9 @@ class Developer(Agent):
                 break
 
     def step_code_change(self, convo, step, i, test_after_code_changes):
-        if step['type'] == 'code_change' and 'code_change_description' in step:
+        if step['type'] != 'code_change':
+            return
+        if 'code_change_description' in step:
             # TODO this should be refactored so it always uses the same function call
             print(f'Implementing code changes for `{step["code_change_description"]}`')
             code_monkey = CodeMonkey(self.project, self)
@@ -131,12 +135,9 @@ class Developer(Agent):
             else:
                 return { "success": True }
 
-        elif step['type'] == 'code_change':
+        else:
             # TODO fix this - the problem is in GPT response that sometimes doesn't return the correct JSON structure
-            if 'code_change' not in step:
-                data = step
-            else:
-                data = step['code_change']
+            data = step if 'code_change' not in step else step['code_change']
             self.project.save_file(data)
             # TODO end
             return {"success": True}
@@ -144,10 +145,7 @@ class Developer(Agent):
     def step_command_run(self, convo, step, i, success_with_cli_response=False):
         logger.info('Running command: %s', step['command'])
         # TODO fix this - the problem is in GPT response that sometimes doesn't return the correct JSON structure
-        if isinstance(step['command'], str):
-            data = step
-        else:
-            data = step['command']
+        data = step if isinstance(step['command'], str) else step['command']
         # TODO END
         additional_message = 'Let\'s start with the step #0:\n\n' if i == 0 else f'So far, steps { ", ".join(f"#{j}" for j in range(i+1)) } are finished so let\'s do step #{i + 1} now.\n\n'
 
@@ -221,7 +219,7 @@ class Developer(Agent):
         elif should_rerun_command == 'YES':
             logger.info('Re-running test command: %s', test_command)
             cli_response, llm_response = execute_command_and_check_cli_response(convo, test_command)
-            logger.info('After running command llm_response: ' + llm_response)
+            logger.info(f'After running command llm_response: {llm_response}')
             if llm_response == 'NEEDS_DEBUGGING':
                 print(color_red('Got incorrect CLI response:'))
                 print(cli_response)
@@ -297,10 +295,8 @@ class Developer(Agent):
             start_idx = s.find('```')
             end_idx = s.find('```', start_idx + 3)
 
-            if start_idx != -1 and end_idx != -1:
-                return s[start_idx + 3:end_idx]
-            else:
-                return s
+            return s[start_idx + 3:end_idx] if start_idx != -1 and end_idx != -1 else s
+
         # TODO end
 
         answer = ''
@@ -323,11 +319,11 @@ class Developer(Agent):
         function_uuid = str(uuid.uuid4())
         convo.save_branch(function_uuid)
 
+        step_implementation_try = 0
         for (i, step) in enumerate(task_steps):
             logger.info('---------- execute_task() step #%d: %s', i, step)
 
             result = None
-            step_implementation_try = 0
             need_to_see_output = 'need_to_see_output' in step and step['need_to_see_output']
 
             while True:
@@ -367,24 +363,22 @@ class Developer(Agent):
 
                     break
                 except TokenLimitError as e:
-                    if is_root_task:
-                        response = self.should_retry_step_implementation(step, step_implementation_try)
-                        if 'retry' in response:
-                            # TODO we can rewind this convo even more
-                            convo.load_branch(function_uuid)
-                            continue
-                        elif 'success' in response:
-                            result = response
-                            break
-                    else:
+                    if not is_root_task:
                         raise e
-                except TooDeepRecursionError as e:
-                    if is_root_task:
-                        result = self.dev_help_needed(step)
+                    response = self.should_retry_step_implementation(step, step_implementation_try)
+                    if 'retry' in response:
+                        # TODO we can rewind this convo even more
+                        convo.load_branch(function_uuid)
+                        continue
+                    elif 'success' in response:
+                        result = response
                         break
-                    else:
+                except TooDeepRecursionError as e:
+                    if not is_root_task:
                         raise e
 
+                    result = self.dev_help_needed(step)
+                    break
         result = { "success": True } # if all steps are finished, the task has been successfully implemented
         convo.load_branch(function_uuid)
         return self.task_postprocessing(convo, development_task, continue_development, result, function_uuid)
@@ -394,8 +388,8 @@ class Developer(Agent):
             logger.info('Continue development, last_branch_name: %s', last_branch_name)
             iteration_convo.load_branch(last_branch_name)
             user_description = ('Here is a description of what should be working: \n\n' + color_blue_bold(continue_description) + '\n') \
-                                if continue_description != '' else ''
-            user_description = 'Can you check if the app works please? ' + user_description
+                                    if continue_description != '' else ''
+            user_description = f'Can you check if the app works please? {user_description}'
 
             if self.run_command:
                 if self.project.ipc_client_instance is None or self.project.ipc_client_instance.client is None:
@@ -471,43 +465,6 @@ class Developer(Agent):
             "os_specific_technologies": [], "newly_installed_technologies": [], "app_data": generate_app_data(self.project.args)
         })
         return
-        # ENVIRONMENT SETUP
-        print(color_green_bold("Setting up the environment...\n"))
-        logger.info("Setting up the environment...")
-
-        os_info = get_os_info()
-        llm_response = self.convo_os_specific_tech.send_message('development/env_setup/specs.prompt',
-            {
-                "name": self.project.args['name'],
-                "app_type": self.project.args['app_type'],
-                "os_info": os_info,
-                "technologies": self.project.architecture
-            }, FILTER_OS_TECHNOLOGIES)
-
-        os_specific_technologies = llm_response['technologies']
-        for technology in os_specific_technologies:
-            logger.info('Installing %s', technology)
-            llm_response = self.install_technology(technology)
-
-            # TODO: I don't think llm_response would ever be 'DONE'?
-            if llm_response != 'DONE':
-                llm_response = self.convo_os_specific_tech.send_message(
-                    'development/env_setup/unsuccessful_installation.prompt',
-                    {'technology': technology},
-                    EXECUTE_COMMANDS)
-                installation_commands = llm_response['commands']
-
-                if installation_commands is not None:
-                    for cmd in installation_commands:
-                        run_command_until_success(self.convo_os_specific_tech, cmd['command'], timeout=cmd['timeout'])
-
-        logger.info('The entire tech stack is installed and ready to be used.')
-
-        save_progress(self.project.args['app_id'], self.project.current_step, {
-            "os_specific_technologies": os_specific_technologies,
-            "newly_installed_technologies": [],
-            "app_data": generate_app_data(self.project.args)
-        })
 
         # ENVIRONMENT SETUP END
 
@@ -552,9 +509,6 @@ class Developer(Agent):
         if test_type == 'command_test':
             command = llm_response['command']
             return run_command_until_success(convo, command['command'], timeout=command['timeout'])
-        elif test_type == 'automated_test':
-            # TODO get code monkey to implement the automated test
-            pass
         elif test_type == 'manual_test':
             # TODO make the message better
             return_value = {'success': False}
@@ -586,12 +540,8 @@ class Developer(Agent):
             'step_index': step_index
         }, EXECUTE_COMMANDS)
 
-        step_details = llm_response['commands']
-
         if type == 'COMMAND':
+            step_details = llm_response['commands']
+
             for cmd in step_details:
                 run_command_until_success(convo, cmd['command'], timeout=cmd['timeout'])
-        # elif type == 'CODE_CHANGE':
-        #     code_changes_details = get_step_code_changes()
-        #     # TODO: give to code monkey for implementation
-        pass

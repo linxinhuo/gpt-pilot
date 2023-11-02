@@ -67,10 +67,10 @@ def ask_to_store_prompt(project, path_id):
 
 
 def ask_user_feedback(project, path_id, ask_feedback):
-    question = ('How did GPT Pilot do? Were you able to create any app that works? Please write any feedback you have '
-                'or just press ENTER to exit:')
     feedback = None
     if ask_feedback:
+        question = ('How did GPT Pilot do? Were you able to create any app that works? Please write any feedback you have '
+                    'or just press ENTER to exit:')
         feedback = styled_text(project, question, ignore_user_input_count=True)
     if feedback:  # only send if user provided feedback
         send_feedback(feedback, path_id)
