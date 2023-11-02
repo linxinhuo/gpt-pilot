@@ -177,7 +177,7 @@ class Project:
             dict: The directory tree of tests.
         """
         # TODO remove hardcoded path
-        return build_directory_tree(self.root_path + '/tests', ignore=IGNORE_FOLDERS)
+        return build_directory_tree(f'{self.root_path}/tests', ignore=IGNORE_FOLDERS)
 
     def get_all_coded_files(self):
         """
@@ -192,7 +192,7 @@ class Project:
         files = [file for file in files if len(FileSnapshot.select().where(FileSnapshot.file_id == file.id)) > 0]
         # TODO END
 
-        files = self.get_files([file.path + '/' + file.name for file in files])
+        files = self.get_files([f'{file.path}/{file.name}' for file in files])
 
         # TODO temoprary fix to eliminate files that are not in the project
         files = [file for file in files if file['content'] != '']
@@ -265,13 +265,16 @@ class Project:
             # file_path should not include the file name
             if file_path == file_name:
                 file_path = ''
-            elif file_path.endswith('/' + file_name):
-                file_path = file_path.replace('/' + file_name, '')
+            elif file_path.endswith(f'/{file_name}'):
+                file_path = file_path.replace(f'/{file_name}', '')
             elif file_path.endswith('/'):
                 file_path = file_path[:-1]
 
-        absolute_path = self.root_path + '/' + file_name if file_path == '' \
-            else self.root_path + '/' + file_path + '/' + file_name
+        absolute_path = (
+            f'{self.root_path}/{file_name}'
+            if file_path == ''
+            else f'{self.root_path}/{file_path}/{file_name}'
+        )
 
         return file_path, absolute_path
 

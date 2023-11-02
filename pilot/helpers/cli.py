@@ -112,8 +112,7 @@ def terminate_process(pid: int, name=None) -> None:
            del running_processes[command_id]
 
 
-def execute_command(project, command, timeout=None, success_message=None, command_id: str = None, force=False) \
-        -> (str, str, int):
+def execute_command(project, command, timeout=None, success_message=None, command_id: str = None, force=False) -> (str, str, int):
     """
     Execute a command and capture its output.
 
@@ -144,14 +143,10 @@ def execute_command(project, command, timeout=None, success_message=None, comman
     if not force:
         print(color_yellow_bold('\n--------- EXECUTE COMMAND ----------'))
         question = f'Can I execute the command: `{color_yellow_bold(command)}`'
-        if timeout is not None:
-            question += f' with {timeout}ms timeout?'
-        else:
-            question += '?'
-
+        question += f' with {timeout}ms timeout?' if timeout is not None else '?'
         answer = ask_user(project, 'If yes, just press ENTER', False, hint=question)
         # TODO can we use .confirm(question, default='yes').ask()  https://questionary.readthedocs.io/en/stable/pages/types.html#confirmation
-        print('answer: ' + answer)
+        print(f'answer: {answer}')
         if answer.lower() in ['no', 'skip']:
             return None, 'DONE', None
         elif answer.lower() not in ['', 'yes', 'ok', 'okay', 'sure']:
@@ -163,7 +158,7 @@ def execute_command(project, command, timeout=None, success_message=None, comman
 
     # TODO when a shell built-in commands (like cd or source) is executed, the output is not captured properly - this will need to be changed at some point
     if platform.system() != 'Windows' and ("cd " in command or "source " in command):
-        command = "bash -c '" + command + "'"
+        command = f"bash -c '{command}'"
 
     project.command_runs_count += 1
     command_run = get_saved_command_run(project, command)
@@ -211,7 +206,7 @@ def execute_command(project, command, timeout=None, success_message=None, comman
                     output_line = q.get_nowait()
                     if output_line not in output:
                         print(color_green('CLI OUTPUT:') + output_line, end='')
-                        logger.info('CLI OUTPUT: ' + output_line)
+                        logger.info(f'CLI OUTPUT: {output_line}')
                         output += output_line
                 break
 
@@ -233,7 +228,7 @@ def execute_command(project, command, timeout=None, success_message=None, comman
             if line:
                 output += line
                 print(color_green('CLI OUTPUT:') + line, end='')
-                logger.info('CLI OUTPUT: ' + line)
+                logger.info(f'CLI OUTPUT: {line}')
                 if success_message is not None and success_message in line:
                     logger.info('Success message found: %s', success_message)
                     # break # TODO background_command - this is if we want to leave command running in background but sometimes processes keep hanging and terminal gets bugged, also if we do that we have to change user messages to make it clear that there is command running in background
@@ -248,7 +243,7 @@ def execute_command(project, command, timeout=None, success_message=None, comman
             if stderr_line:
                 stderr_output += stderr_line
                 print(color_red('CLI ERROR:') + stderr_line, end='')  # Print with different color for distinction
-                logger.error('CLI ERROR: ' + stderr_line)
+                logger.error(f'CLI ERROR: {stderr_line}')
 
     except (KeyboardInterrupt, TimeoutError, CommandFinishedEarly) as e:
         if isinstance(e, KeyboardInterrupt):
@@ -280,7 +275,11 @@ def execute_command(project, command, timeout=None, success_message=None, comman
     if return_value is None:
         return_value = ''
         if stderr_output != '':
-            return_value = 'stderr:\n```\n' + stderr_output[0:MAX_COMMAND_OUTPUT_LENGTH] + '\n```\n'
+            return_value = (
+                'stderr:\n```\n'
+                + stderr_output[:MAX_COMMAND_OUTPUT_LENGTH]
+                + '\n```\n'
+            )
         return_value += 'stdout:\n```\n' + output[-MAX_COMMAND_OUTPUT_LENGTH:] + '\n```'
 
     save_command_run(project, command, return_value, done_or_error_response, process.returncode)
@@ -301,15 +300,9 @@ def build_directory_tree(path, prefix='', is_root=True, ignore=None):
     - A string representation of the directory tree.
     """
     output = ""
-    indent = '  '
-
     if os.path.isdir(path):
         dir_name = os.path.basename(path)
-        if is_root:
-            output += '/'
-        else:
-            output += f'{prefix}/{dir_name}'
-
+        output += '/' if is_root else f'{prefix}/{dir_name}'
         # List items in the directory
         items = os.listdir(path)
         dirs = [item for item in items if os.path.isdir(os.path.join(path, item)) and item not in ignore]
@@ -319,7 +312,9 @@ def build_directory_tree(path, prefix='', is_root=True, ignore=None):
 
         if dirs:
             output += '\n'
-            for index, dir_item in enumerate(dirs):
+            indent = '  '
+
+            for dir_item in dirs:
                 item_path = os.path.join(path, dir_item)
                 output += build_directory_tree(item_path, prefix + indent, is_root=False, ignore=ignore)
 
@@ -335,11 +330,15 @@ def build_directory_tree(path, prefix='', is_root=True, ignore=None):
 
 
 def res_for_build_directory_tree(path, files=None):
-   return ' - ' + files[os.path.basename(path)].description + ' ' if files and os.path.basename(path) in files else ''
+    return (
+        f' - {files[os.path.basename(path)].description} '
+        if files and os.path.basename(path) in files
+        else ''
+    )
 
 
 def build_directory_tree_with_descriptions(path, prefix="", ignore=None, is_last=False, files=None):
-   """Build the directory tree structure in tree-like format.
+    """Build the directory tree structure in tree-like format.
    Args:
    - path: The starting directory path.
    - prefix: Prefix for the current item, used for recursion.
@@ -348,20 +347,23 @@ def build_directory_tree_with_descriptions(path, prefix="", ignore=None, is_last
    Returns:
    - A string representation of the directory tree.
    """
-   ignore |= []
-   if os.path.basename(path) in ignore:
-       return ""
-   output = ""
-   indent = '|   ' if not is_last else '    '
-   # It's a directory, add its name to the output and then recurse into it
-   output += prefix + "|-- " + os.path.basename(path) + res_for_build_directory_tree(path, files) + "/\n"
-   if os.path.isdir(path):
-       # List items in the directory
-       items = os.listdir(path)
-       for index, item in enumerate(items):
-           item_path = os.path.join(path, item)
-           output += build_directory_tree(item_path, prefix + indent, ignore, index == len(items) - 1, files)
-   return output
+    ignore |= []
+    if os.path.basename(path) in ignore:
+        return ""
+    output = ""
+    indent = '|   ' if not is_last else '    '
+       # It's a directory, add its name to the output and then recurse into it
+    output += (
+        f"{prefix}|-- {os.path.basename(path)}{res_for_build_directory_tree(path, files)}"
+        + "/\n"
+    )
+    if os.path.isdir(path):
+        # List items in the directory
+        items = os.listdir(path)
+        for index, item in enumerate(items):
+            item_path = os.path.join(path, item)
+            output += build_directory_tree(item_path, prefix + indent, ignore, index == len(items) - 1, files)
+    return output
 
 
 def execute_command_and_check_cli_response(convo, command: dict):
@@ -382,7 +384,7 @@ def execute_command_and_check_cli_response(convo, command: dict):
                 If `cli_response` is None, user's response to "Can I execute...".
     """
     # TODO: Prompt mentions `command` could be `INSTALLED` or `NOT_INSTALLED`, where is this handled?
-    command_id = command['command_id'] if 'command_id' in command else None
+    command_id = command.get('command_id', None)
     cli_response, response, exit_code = execute_command(convo.agent.project,
                                                             command['command'],
                                                             timeout=command['timeout'],
@@ -464,32 +466,31 @@ def run_command_until_success(convo, command,
                 })
             logger.debug(f'LLM response: {response}')
 
-    if response != 'DONE':
-        # 'NEEDS_DEBUGGING'
-        print(color_red('Got incorrect CLI response:'))
-        print(cli_response)
-        print(color_red('-------------------'))
-
-        reset_branch_id = convo.save_branch()
-        while True:
-            try:
-                # This catch is necessary to return the correct value (cli_response) to continue development function so
-                # the developer can debug the appropriate issue
-                # this snippet represents the first entry point into debugging recursion because of return_cli_response
-                success = convo.agent.debugger.debug(convo, {
-                    'command': command,
-                    'timeout': timeout,
-                    'command_id': command_id,
-                    'success_message': success_message,
-                }, user_input=cli_response, is_root_task=is_root_task)
-                return {'success': success, 'cli_response': cli_response}
-            except TooDeepRecursionError as e:
-                # this is only to put appropriate message in the response after TooDeepRecursionError is raised
-                raise TooDeepRecursionError(cli_response) if return_cli_response else e
-            except TokenLimitError as e:
-                if is_root_task:
-                    convo.load_branch(reset_branch_id)
-                else:
-                    raise e
-    else:
+    if response == 'DONE':
         return {'success': True, 'cli_response': cli_response}
+    # 'NEEDS_DEBUGGING'
+    print(color_red('Got incorrect CLI response:'))
+    print(cli_response)
+    print(color_red('-------------------'))
+
+    reset_branch_id = convo.save_branch()
+    while True:
+        try:
+            # This catch is necessary to return the correct value (cli_response) to continue development function so
+            # the developer can debug the appropriate issue
+            # this snippet represents the first entry point into debugging recursion because of return_cli_response
+            success = convo.agent.debugger.debug(convo, {
+                'command': command,
+                'timeout': timeout,
+                'command_id': command_id,
+                'success_message': success_message,
+            }, user_input=cli_response, is_root_task=is_root_task)
+            return {'success': success, 'cli_response': cli_response}
+        except TooDeepRecursionError as e:
+            # this is only to put appropriate message in the response after TooDeepRecursionError is raised
+            raise TooDeepRecursionError(cli_response) if return_cli_response else e
+        except TokenLimitError as e:
+            if is_root_task:
+                convo.load_branch(reset_branch_id)
+            else:
+                raise e

@@ -27,10 +27,7 @@ def capitalize_first_word_with_underscores(s):
     # Capitalize the first word and leave the rest unchanged.
     words[0] = words[0].capitalize()
 
-    # Join the words back into a string with underscores.
-    capitalized_string = '_'.join(words)
-
-    return capitalized_string
+    return '_'.join(words)
 
 
 def get_prompt(prompt_name, data=None):
@@ -44,10 +41,7 @@ def get_prompt(prompt_name, data=None):
     # Load the template
     template = env.get_template(prompt_name)
 
-    # Render the template with the provided data
-    output = template.render(data)
-
-    return output
+    return template.render(data)
 
 
 def get_prompt_components(data):
@@ -98,11 +92,10 @@ def get_sys_message(role,args=None):
 
 
 def find_role_from_step(target):
-    for role, values in ROLES.items():
-        if target in values:
-            return role
-
-    return 'product_owner'
+    return next(
+        (role for role, values in ROLES.items() if target in values),
+        'product_owner',
+    )
 
 
 def get_os_info():

@@ -4,11 +4,7 @@ from peewee import TextField
 
 class JSONField(TextField):
     def python_value(self, value):
-        if value is not None:
-            return json.loads(value)
-        return value
+        return json.loads(value) if value is not None else value
 
     def db_value(self, value):
-        if value is not None:
-            return json.dumps(value)
-        return value
+        return json.dumps(value) if value is not None else value

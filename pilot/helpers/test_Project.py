@@ -222,8 +222,10 @@ class TestProject:
                     elif 'folder2' in file_path:
                         expected_path = 'folder2'
 
-                    expected_absolute_path = project.root_path + \
-                                             ('' if expected_path == '' else '/' + expected_path) + '/server.js'
+                    expected_absolute_path = (
+                        project.root_path
+                        + ('' if not expected_path else f'/{expected_path}')
+                    ) + '/server.js'
 
                     out_file_path, absolute_path = project.get_full_file_path(file_path, file_name)
                     # print(f"file_path: {file_path} -> {out_file_path}, \tabsolute_path: {absolute_path}")
@@ -257,8 +259,9 @@ class TestProject:
                     assert out_file_path == '', f'file_path: {file_path}, file_name: {file_name}'
                     # if absolute_path != '/Users/zvonimirsabljic/Development/copilot/pilot/server.js':
                     #     print(f'file_path: {file_path}, file_name: {file_name}')
-                    assert absolute_path == project.root_path + '/server.js',\
-                        f'file_path: {file_path}, file_name: {file_name}'
+                    assert (
+                        absolute_path == f'{project.root_path}/server.js'
+                    ), f'file_path: {file_path}, file_name: {file_name}'
 
     def test_save_file_permutations_windows_deeper(self):
         project = create_project()
@@ -316,8 +319,10 @@ class TestProject:
                     elif 'folder2' in file_path:
                         expected_path = 'folder2'
 
-                    expected_absolute_path = project.root_path + \
-                                             ('' if expected_path == '' else '/' + expected_path) + '/server.js'
+                    expected_absolute_path = (
+                        project.root_path
+                        + ('' if not expected_path else f'/{expected_path}')
+                    ) + '/server.js'
 
                     out_file_path, absolute_path = project.get_full_file_path(file_path, file_name)
                     # print(f"file_path: {file_path} -> {out_file_path}, \tabsolute_path: {absolute_path}")
@@ -376,8 +381,8 @@ class TestProjectFileLists:
         files_no_folders = os.path.join(foo, 'files_no_folders')
         os.makedirs(src, exist_ok=True)
         os.makedirs(foo, exist_ok=True)
-        os.makedirs(foo + '/empty1', exist_ok=True)
-        os.makedirs(foo + '/empty2', exist_ok=True)
+        os.makedirs(f'{foo}/empty1', exist_ok=True)
+        os.makedirs(f'{foo}/empty2', exist_ok=True)
         os.makedirs(files_no_folders, exist_ok=True)
         for dir in ['.git', '.idea', '.vscode', '__pycache__', 'node_modules', 'venv', 'dist', 'build']:
             os.makedirs(os.path.join(project.root_path, dir), exist_ok=True)

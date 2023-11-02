@@ -18,8 +18,7 @@ def setup_workspace(args) -> str:
     Also creates a 'tests' folder inside the workspace.
     :param args: may contain 'root' key
     """
-    workspace = args.get('workspace')
-    if workspace:
+    if workspace := args.get('workspace'):
         project_path = workspace
     else:
         root = args.get('root') or get_parent_folder('pilot')

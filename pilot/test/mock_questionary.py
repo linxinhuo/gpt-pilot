@@ -10,7 +10,7 @@ class MockQuestionary:
             pass
 
     def text(self, question: str, style=None):
-        print('AI: ' + question)
+        print(f'AI: {question}')
         if question.startswith('User Story'):
             self.state = 'user_stories'
         elif question.endswith('write "DONE"'):

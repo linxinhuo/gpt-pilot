@@ -54,5 +54,5 @@ class TestCustomOpenFunction(unittest.TestCase):
 
         with open(self.test_filename, 'r') as f:
             content = f.read()
-            expected_content = self.test_content + " additional content"
+            expected_content = f"{self.test_content} additional content"
             self.assertEqual(content, expected_content)

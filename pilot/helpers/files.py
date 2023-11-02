@@ -37,7 +37,11 @@ def get_files_content(directory, ignore=[]):
                 file_content = f.read()
 
             file_name = os.path.basename(path)
-            relative_path = path.replace(directory, '').replace('\\', '/').replace('/' + file_name, '')
+            relative_path = (
+                path.replace(directory, '')
+                .replace('\\', '/')
+                .replace(f'/{file_name}', '')
+            )
             return_array.append({
                 'name': file_name,
                 'path': relative_path,

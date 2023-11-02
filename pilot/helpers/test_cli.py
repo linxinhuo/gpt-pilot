@@ -5,7 +5,6 @@ from helpers.test_Project import create_project
 
 def test_terminate_process_not_running():
     terminate_process(999999999, 'not running')
-    assert True
 
 
 @patch('helpers.cli.get_saved_command_run')
